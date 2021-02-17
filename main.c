@@ -8,6 +8,7 @@
 
 #include "config.h"      //! For g_port, g_backlog
 #include "utils.h"
+#include "request.h"
 
 void signal_handler(int s)
 {
@@ -145,8 +146,10 @@ int main(void)
                     0
         );
 
+        char * trimmed_request = rtrim(request);
+
         if (bytes_recvd > 0) {
-            printf("server: %ld bytes received\nserver: request: %s", bytes_recvd, request);
+            printf("server: %ld bytes received\nserver: received request: '%s'\n", bytes_recvd, request);
         }
 
         char client_ip[INET6_ADDRSTRLEN];
@@ -164,25 +167,27 @@ int main(void)
             //! Code in this block runs in the child process
             close(sockfd); //! The child process doesn't need the listener anymore
 
-            file_request_t file_req = get_file("file-server");
-            if (file_req.status != 0) {
-                // get_file returns 1 in case of failure.
-                exit(0);
-            }
-            ssize_t bytes_sent = send(
-                        new_conn,
-                        file_req.contents,
-                        file_req.size,
-                        0
-            );
+            request_t req = process_request(trimmed_request);
 
-            free(file_req.contents);
+//            get_request_t file_req = get_file("file-server");
+//            if (file_req.status != 0) {
+//                // get_file returns 1 in case of failure.
+//                exit(0);
+//            }
+//            ssize_t bytes_sent = send(
+//                        new_conn,
+//                        file_req.contents,
+//                        file_req.size,
+//                        0
+//            );
 
-            if (bytes_sent == -1) {
-                perror("send");
-            } else {
-                printf("server: finished sending %ld bytes.", bytes_sent);
-            }
+//            free(file_req.contents);
+
+//            if (bytes_sent == -1) {
+//                perror("send");
+//            } else {
+//                printf("server: finished sending %ld bytes.", bytes_sent);
+//            }
 
             close(new_conn);
             exit(0);
