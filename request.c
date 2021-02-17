@@ -35,18 +35,16 @@ static request_t process_get_request(const char * request) {
 
     if (strlen(request) <= 4)
     {
-        fprintf(stderr, "server: error: missing body in GET request.\n");
-        req_struct.status = 1;
+        printf("server: error: missing body in GET request.\n");
+        req_struct.status = 422;
+        return req_struct;
     }
 
     char * filename = strdup(request + 4);
-    if (filename[strlen(filename)-1] == '\n') {
-        printf("newline found");
-    }
 
     FILE *file = fopen(filename, "rb");
     if (!file) {
-        fprintf(stderr, "server: error: could not open file '%s'.\n", filename);
+        printf("server: error: could not open file '%s'.\n", filename);
         free(filename);
         req_struct.status = 404; // 404: not found
         return req_struct;
@@ -65,10 +63,36 @@ static request_t process_get_request(const char * request) {
     fread(req_struct.data.get_req.contents, sz, 1, file);
 
     free(filename);
+    fclose(file);
     return req_struct;
 }
 
+request_t process_create_request(const char * request) {
+    printf("server: processing CREATE request.\n");
+    request_t req_struct;
+    req_struct.type = Create;
 
+    if (strlen(request) <= 7) {
+        printf("server: error: missing body in CREATE request.\n");
+        req_struct.status = 422;
+        return req_struct;
+    }
+    char * new_file_name = strdup(request + 7);
+
+    FILE * file = fopen(new_file_name, "w");
+    if (!file) {
+        printf("server: error: could not create file '%s'\n", new_file_name);
+    } else {
+        printf("server: created file '%s'\n", new_file_name);
+    }
+
+    req_struct.status = 200;
+    req_struct.data.create_req.filename = strdup(new_file_name);
+
+    fclose(file);
+    free(new_file_name);
+    return req_struct;
+}
 
 //! process_request
 request_t process_request(const char * request)
@@ -79,7 +103,7 @@ request_t process_request(const char * request)
     }
 
     else if (is_create_req(request)) {
-//        return ;
+        return process_create_request(request);
     }
 
 
@@ -95,6 +119,7 @@ request_t process_request(const char * request)
 }
 
 static ssize_t send_file(request_t req, fd_t dest_sock) {
+    assert(req.type == Get);
     ssize_t bytes_sent = send(
         dest_sock,
         req.data.get_req.contents,
@@ -104,13 +129,31 @@ static ssize_t send_file(request_t req, fd_t dest_sock) {
     return bytes_sent;
 }
 
+static ssize_t notify_creation(request_t req, fd_t dest_sock) {
+    assert(req.type == Create);
+    size_t message_size = strlen(req.data.create_req.filename) + 25;
+    char * message = malloc(message_size);
+    snprintf(message, message_size, "server: created file '%s'", req.data.create_req.filename);
+
+    ssize_t bytes_sent = send(
+        dest_sock,
+        message,
+        message_size,
+        0
+    );
+
+    free(message);
+
+    return bytes_sent;
+}
 
 ssize_t send_response(request_t req, fd_t dest_sock) {
     switch (req.type) {
         case Get:
             return send_file(req, dest_sock);
         case Append: break;
-        case Create: break;
+        case Create:
+            return notify_creation(req, dest_sock);
         case Remove: break;
     }
 }

@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "request.h"
 
+#define PRINT_STATUS printf("server: finished request with status %d.", req.status);
+
 void signal_handler(int s)
 {
     if (s == SIGINT) {
@@ -170,19 +172,21 @@ int main(void)
             request_t req = process_request(trimmed_request);
 
             if (req.status != 200) {
-                // Request wasn't OK
+                // Request returned failure
+                PRINT_STATUS
                 exit(0);
             }
             ssize_t bytes_sent = send_response(req, new_conn);
 
-//            free(file_req.contents);
+//            TODO: free malloc'd memory
 
             if (bytes_sent == -1) {
                 perror("send");
             } else {
-                printf("server: finished sending %ld bytes.", bytes_sent);
+                printf("server: finished sending %ld bytes.\n", bytes_sent);
             }
 
+            PRINT_STATUS
             close(new_conn);
             exit(0);
         }
