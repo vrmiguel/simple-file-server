@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <assert.h>
 
 static inline bool is_get_req(const char * request) {
     return (!strncmp(request,"GET", 3)) ||
@@ -47,7 +48,7 @@ static request_t process_get_request(const char * request) {
     if (!file) {
         fprintf(stderr, "server: error: could not open file '%s'.\n", filename);
         free(filename);
-        req_struct.status = 1; // We're adopting 1 as an error, 0 as OK.
+        req_struct.status = 404; // 404: not found
         return req_struct;
     }
 
@@ -58,7 +59,7 @@ static request_t process_get_request(const char * request) {
     printf("server: file '%s' has %ld bytes.\n", filename, sz);
 
 
-    req_struct.status = 0; // 0 represents OK
+    req_struct.status = 200; // 200: OK
     req_struct.data.get_req.contents = malloc(sz);
     req_struct.data.get_req.size     = sz;
     fread(req_struct.data.get_req.contents, sz, 1, file);
@@ -68,9 +69,8 @@ static request_t process_get_request(const char * request) {
 }
 
 
-//!
+
 //! process_request
-//!
 request_t process_request(const char * request)
 {
     printf("server: starting to process request.\n");
@@ -92,4 +92,25 @@ request_t process_request(const char * request)
         //
     }
 
+}
+
+static ssize_t send_file(request_t req, fd_t dest_sock) {
+    ssize_t bytes_sent = send(
+        dest_sock,
+        req.data.get_req.contents,
+        req.data.get_req.size,
+        0
+    );
+    return bytes_sent;
+}
+
+
+ssize_t send_response(request_t req, fd_t dest_sock) {
+    switch (req.type) {
+        case Get:
+            return send_file(req, dest_sock);
+        case Append: break;
+        case Create: break;
+        case Remove: break;
+    }
 }

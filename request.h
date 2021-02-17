@@ -1,7 +1,9 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 
+#include "utils.h"
 #include <stddef.h> // For size_t
+#include <unistd.h> // For ssize_t
 
 enum request_type {
     Append,
@@ -42,7 +44,7 @@ typedef struct append_request_s append_request_t;
 
 struct request_s {
     request_type_t type;
-    unsigned char status;
+    unsigned short status;
     union Data {
         get_request_t       get_req;
         create_request_t create_req;
@@ -54,5 +56,6 @@ struct request_s {
 typedef struct request_s request_t;
 
 request_t process_request(const char * request);
+ssize_t send_response(request_t, fd_t);
 
 #endif // REQUEST_H

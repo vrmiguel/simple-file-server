@@ -169,25 +169,19 @@ int main(void)
 
             request_t req = process_request(trimmed_request);
 
-//            get_request_t file_req = get_file("file-server");
-//            if (file_req.status != 0) {
-//                // get_file returns 1 in case of failure.
-//                exit(0);
-//            }
-//            ssize_t bytes_sent = send(
-//                        new_conn,
-//                        file_req.contents,
-//                        file_req.size,
-//                        0
-//            );
+            if (req.status != 200) {
+                // Request wasn't OK
+                exit(0);
+            }
+            ssize_t bytes_sent = send_response(req, new_conn);
 
 //            free(file_req.contents);
 
-//            if (bytes_sent == -1) {
-//                perror("send");
-//            } else {
-//                printf("server: finished sending %ld bytes.", bytes_sent);
-//            }
+            if (bytes_sent == -1) {
+                perror("send");
+            } else {
+                printf("server: finished sending %ld bytes.", bytes_sent);
+            }
 
             close(new_conn);
             exit(0);
