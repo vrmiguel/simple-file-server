@@ -71,7 +71,7 @@ static request_t process_get_request(const char * request) {
 request_t process_remove_request(const char * request) {
     printf("server: processing REMOVE request.\n");
     request_t req_struct;
-    req_struct.status = Remove;
+    req_struct.type = Remove;
 
     if (strlen(request) <= 7) {
         printf("server: error: missing body in REMOVE request.\n");
@@ -160,6 +160,7 @@ static ssize_t send_file(request_t req, fd_t dest_sock) {
 
 static ssize_t notify_removal(request_t req, fd_t dest_sock) {
     assert(req.type == Remove);
+    fprintf(stderr, "estou em notify_removal\n");
     size_t message_size = strlen(req.data.remove_req.filename) + 25;
     char * message = malloc(message_size);
     snprintf(message, message_size, "server: removed file '%s'", req.data.create_req.filename);

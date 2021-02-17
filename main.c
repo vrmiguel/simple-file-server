@@ -148,6 +148,7 @@ int main(void)
                     0
         );
 
+        // Trim trailing whitespace
         char * trimmed_request = rtrim(request);
 
         if (bytes_recvd > 0) {
