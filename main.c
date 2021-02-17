@@ -149,8 +149,6 @@ int main(void)
             printf("server: %ld bytes received\nserver: request: %s", bytes_recvd, request);
         }
 
-
-
         char client_ip[INET6_ADDRSTRLEN];
         inet_ntop(
                     their_addr.ss_family,
@@ -165,8 +163,25 @@ int main(void)
         if (!fork()) {
             //! Code in this block runs in the child process
             close(sockfd); //! The child process doesn't need the listener anymore
-            if (send(new_conn, "<message>", 13, 0) == -1){
+
+            file_request_t file_req = get_file("file-server");
+            if (file_req.status != 0) {
+                // get_file returns 1 in case of failure.
+                exit(0);
+            }
+            ssize_t bytes_sent = send(
+                        new_conn,
+                        file_req.contents,
+                        file_req.size,
+                        0
+            );
+
+            free(file_req.contents);
+
+            if (bytes_sent == -1) {
                 perror("send");
+            } else {
+                printf("server: finished sending %ld bytes.", bytes_sent);
             }
 
             close(new_conn);
