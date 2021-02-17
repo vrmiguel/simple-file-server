@@ -25,16 +25,6 @@ void signal_handler(int s)
 }
 
 
-// get sockaddr, IPv4 or IPv6:
-static void *get_in_addr(struct sockaddr *sa)
-{
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
 int main(void)
 {
 
@@ -55,7 +45,6 @@ int main(void)
 
     struct sigaction sa;
     int yes=1;
-    char s[INET6_ADDRSTRLEN];
 
     //  --> ai_family
 //    This field specifies the desired address family for the
@@ -150,9 +139,9 @@ int main(void)
         char request[2048] = {0};
         ssize_t bytes_recvd = // The quantity of bytes received from the client
                 recv(
-                    new_conn,
-                    request,
-                    g_max_request_len,
+                    new_conn, // File descriptor of the connection
+                    request,  // The buffer to where the request will be written to
+                    g_max_request_len, // The max. quantity of bytes that can be written to the `request` buffer
                     0
         );
 
@@ -162,22 +151,30 @@ int main(void)
 
 
 
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
-        printf("server: got connection from %s\n", s);
+        char client_ip[INET6_ADDRSTRLEN];
+        inet_ntop(
+                    their_addr.ss_family,
+                    get_address((struct sockaddr *) &their_addr),
+                    client_ip,
+                    INET6_ADDRSTRLEN
+        );
 
-        if (!fork()) { // this is the child process
-            close(sockfd); // child doesn't need the listener
-            if (send(new_conn, "<message>", 13, 0) == -1)
+
+        printf("server: got connection from %s\n", client_ip);
+
+        if (!fork()) {
+            //! Code in this block runs in the child process
+            close(sockfd); //! The child process doesn't need the listener anymore
+            if (send(new_conn, "<message>", 13, 0) == -1){
                 perror("send");
+            }
+
             close(new_conn);
             exit(0);
         }
-        close(new_conn);  // parent doesn't need this
-    }
+        close(new_conn);
+    }    
     close(sockfd);
-
     return 0;
 }
 
