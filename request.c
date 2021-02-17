@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <errno.h>
 
 static inline bool is_get_req(const char * request) {
     return (!strncmp(request,"GET", 3)) ||
@@ -67,6 +68,33 @@ static request_t process_get_request(const char * request) {
     return req_struct;
 }
 
+request_t process_remove_request(const char * request) {
+    printf("server: processing REMOVE request.\n");
+    request_t req_struct;
+    req_struct.status = Remove;
+
+    if (strlen(request) <= 7) {
+        printf("server: error: missing body in REMOVE request.\n");
+        req_struct.status = 422;
+        return req_struct;
+    }
+
+    char * to_be_removed = strdup(request + 7);
+    int ret = remove(to_be_removed);
+    if (ret == 0) {
+        printf("server: file '%s' succesfully removed.\n", to_be_removed);
+        req_struct.status = 200;
+    } else {
+        printf("server: error: could not remove '%s'.\n", to_be_removed);
+        req_struct.status = 500;
+    }
+
+    req_struct.data.remove_req.filename = strdup(to_be_removed);
+
+    free(to_be_removed);
+    return req_struct;
+}
+
 request_t process_create_request(const char * request) {
     printf("server: processing CREATE request.\n");
     request_t req_struct;
@@ -106,16 +134,17 @@ request_t process_request(const char * request)
         return process_create_request(request);
     }
 
-
     else if (is_append_req(request)) {
 
     }
 
-
     else if (is_remove_req(request)) {
-        //
+        return process_remove_request(request);
     }
 
+    printf("server: error: unknown request");
+    request_t req; req.status = 400;
+    return req;
 }
 
 static ssize_t send_file(request_t req, fd_t dest_sock) {
@@ -126,6 +155,23 @@ static ssize_t send_file(request_t req, fd_t dest_sock) {
         req.data.get_req.size,
         0
     );
+    return bytes_sent;
+}
+
+static ssize_t notify_removal(request_t req, fd_t dest_sock) {
+    assert(req.type == Remove);
+    size_t message_size = strlen(req.data.remove_req.filename) + 25;
+    char * message = malloc(message_size);
+    snprintf(message, message_size, "server: removed file '%s'", req.data.create_req.filename);
+
+    ssize_t bytes_sent = send(
+        dest_sock,
+        message,
+        message_size,
+        0
+    );
+
+    free(message);
     return bytes_sent;
 }
 
@@ -154,6 +200,7 @@ ssize_t send_response(request_t req, fd_t dest_sock) {
         case Append: break;
         case Create:
             return notify_creation(req, dest_sock);
-        case Remove: break;
+        case Remove:
+            return notify_removal(req, dest_sock);
     }
 }

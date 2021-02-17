@@ -31,7 +31,7 @@ void signal_handler(int s)
 int main(void)
 {
 
-    printf("Simple file server -- Vinícius R. Miguel & Celso");
+    printf("Simple file server -- Vinícius R. Miguel & Celso Vieira Ribeiro Lopes\n");
 
     //! The socket on which we'll be listening on
     fd_t sockfd;
