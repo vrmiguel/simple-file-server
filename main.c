@@ -146,26 +146,27 @@ int main(void)
         );
         printf("server: got connection from %s\n", client_ip);
 
-        // ---- recv
-        char request[2048] = {0};
-        ssize_t bytes_recvd = // The quantity of bytes received from the client
-                recv(
-                    new_conn, // File descriptor of the connection
-                    request,  // The buffer to where the request will be written to
-                    g_max_request_len, // The max. quantity of bytes that can be written to the `request` buffer
-                    0
-        );
-
-        // Trim trailing whitespace
-        char * trimmed_request = rtrim(request);
-
-        if (bytes_recvd > 0) {
-            printf("server: %ld bytes received\nserver: received request: '%s'\n", bytes_recvd, request);
-        }
-
         if (!fork()) {
             //! Code in this block runs in the child process
             close(sockfd); //! The child process doesn't need the listener anymore
+
+            // ---- recv
+            char request[2048] = {0};
+            ssize_t bytes_recvd = // The quantity of bytes received from the client
+                    recv(
+                        new_conn, // File descriptor of the connection
+                        request,  // The buffer to where the request will be written to
+                        g_max_request_len, // The max. quantity of bytes that can be written to the `request` buffer
+                        0
+            );
+
+            // Trim trailing whitespace
+            char * trimmed_request = rtrim(request);
+
+            if (bytes_recvd > 0) {
+                printf("server: %ld bytes received\nserver: received request: '%s'\n", bytes_recvd, request);
+            }
+
 
             request_t req = process_request(trimmed_request);
 
