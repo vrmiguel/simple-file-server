@@ -73,7 +73,7 @@ int main(void)
     }
 
     struct addrinfo * p;
-    int yes=1;
+    int level=1;
     for(p = service_info; p != NULL; p = p->ai_next) {
         sockfd = socket(
                     p->ai_family,
@@ -86,13 +86,27 @@ int main(void)
             continue;
         }
 
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                sizeof(int)) == -1) {
+        //! Configuring the socket
+        int ret_val = setsockopt(
+                    sockfd,       //! The socket were configuring
+                    SOL_SOCKET,   //! Sets the level to be 1, that is, configure the socket itself
+                    SO_REUSEADDR, //! Allow reuse of local addresses
+                    &level,
+                    sizeof(int)
+        );
+
+        if (ret_val == -1) {
             perror("setsockopt");
             exit(1);
         }
 
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+        ret_val = bind(
+                    sockfd,         // The socket to which the address will be bound to
+                    p->ai_addr,     // The address to be bound to the socket
+                    p->ai_addrlen   // Length of the address
+        );
+
+        if (ret_val == -1) {
             close(sockfd);
             perror("server: bind");
             continue;
@@ -103,7 +117,6 @@ int main(void)
 
     freeaddrinfo(service_info);
 
-    //
     if (p == NULL)  {
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
@@ -184,7 +197,13 @@ int main(void)
             }
             ssize_t bytes_sent = send_response(req, new_conn);
 
-//            TODO: free malloc'd memory
+            switch (req.type) {
+                case Append: break; // Nothing to free here
+                case Remove: free(req.data.remove_req.filename); break;
+                case Create: free(req.data.create_req.filename); break;
+                case Get: free(req.data.get_req.contents); break;
+                default: break;
+            }
 
             if (bytes_sent == -1) {
                 perror("send");
