@@ -42,20 +42,10 @@ int main(void)
     //! contain an Internet address that can be specified
     //! in a call to bind or connect.
     struct addrinfo *service_info;
-    struct addrinfo * p;
     //! Connector's address information
     struct sockaddr_storage their_addr;
 
     struct sigaction sa;
-    int yes=1;
-
-    //  --> ai_family
-//    This field specifies the desired address family for the
-//    returned addresses.  Valid values for this field include
-//    AF_INET and AF_INET6.  The value AF_UNSPEC indicates that
-//    getaddrinfo() should return socket addresses for any
-//    address family (either IPv4 or IPv6, for example) that can
-//    be used with node and service.
 
     hints.ai_family   = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -81,10 +71,16 @@ int main(void)
         return 1;
     }
 
-    // loop through all the results and bind to the first we can
+    struct addrinfo * p;
+    int yes=1;
     for(p = service_info; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
+        sockfd = socket(
+                    p->ai_family,
+                    p->ai_socktype,
+                    p->ai_protocol
+        );
+
+        if (sockfd == -1){
             perror("server: socket");
             continue;
         }
@@ -140,6 +136,16 @@ int main(void)
             perror("accept");
             continue;
         }
+
+        char client_ip[INET6_ADDRSTRLEN];
+        inet_ntop(
+                    their_addr.ss_family,
+                    get_address((struct sockaddr *) &their_addr),
+                    client_ip,
+                    INET6_ADDRSTRLEN
+        );
+        printf("server: got connection from %s\n", client_ip);
+
         // ---- recv
         char request[2048] = {0};
         ssize_t bytes_recvd = // The quantity of bytes received from the client
@@ -156,17 +162,6 @@ int main(void)
         if (bytes_recvd > 0) {
             printf("server: %ld bytes received\nserver: received request: '%s'\n", bytes_recvd, request);
         }
-
-        char client_ip[INET6_ADDRSTRLEN];
-        inet_ntop(
-                    their_addr.ss_family,
-                    get_address((struct sockaddr *) &their_addr),
-                    client_ip,
-                    INET6_ADDRSTRLEN
-        );
-
-
-        printf("server: got connection from %s\n", client_ip);
 
         if (!fork()) {
             //! Code in this block runs in the child process
