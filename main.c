@@ -12,19 +12,16 @@
 
 #define PRINT_STATUS printf("server: finished request with status %d.", req.status);
 
+//! Signal handler for child processes
 void signal_handler(int s)
 {
     if (s == SIGINT) {
         fprintf(stderr, "SIGINT received. Exiting.");
         exit(0);
     }
-
-    // waitpid() might overwrite errno, so we save and restore it:
-    int saved_errno = errno;
-
+    int backup = errno;
     while(waitpid(-1, NULL, WNOHANG) > 0);
-
-    errno = saved_errno;
+    errno = backup;
 }
 
 
@@ -37,7 +34,6 @@ int main(void)
     fd_t sockfd;
     //! Is going to hold the new connections
     fd_t new_conn;
-    struct addrinfo hints = {0};
     //! service_info will hold the return of getaddrinfo, meaning that it'll
     //! contain an Internet address that can be specified
     //! in a call to bind or connect.
@@ -47,9 +43,14 @@ int main(void)
 
     struct sigaction sa;
 
+    //! specifies criteria for selecting the  socket  address  structures  returned  in  the  list pointed  to  by  res.
+    struct addrinfo hints = {0};
+    //! AF_UNSPEC means getaddrinfo should return socket addresses of both IPv4 and IPv6.
     hints.ai_family   = AF_UNSPEC;
+    //! Make a reliable, sequenced, two-way connection (TCP)
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_PASSIVE; // use my IP
+    //! Use a wildcard IP address
+    hints.ai_flags    = AI_PASSIVE;
 
     int ret_val = getaddrinfo(
                 NULL,       //    The AI_PASSIVE flag was specified in hints.ai_flags, and node == NULL,
@@ -61,9 +62,9 @@ int main(void)
                             //    (typically servers) that intend to accept connections on any of
                             //    the host's network addresses.
 
-                g_port,     //
-                &hints,     //
-                &service_info   //
+                g_port,     //    The port to bind to
+                &hints,     //    Specifies criteria to getaddrinfo
+                &service_info   // Where the results will be saved to
     );
 
     if (ret_val != 0) {
@@ -100,8 +101,9 @@ int main(void)
         break;
     }
 
-    freeaddrinfo(service_info); // all done with this structure
+    freeaddrinfo(service_info);
 
+    //
     if (p == NULL)  {
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
@@ -126,7 +128,7 @@ int main(void)
     while(1) {  // main accept() loop
         // ---- Accept
         socklen_t addr_length = sizeof their_addr;
-        // Accept will block the server until it gets a connection
+        //! Accept will block the server until it gets a connection
         new_conn = accept(
                     sockfd,
                     (struct sockaddr *)&their_addr,
@@ -148,6 +150,7 @@ int main(void)
 
         if (!fork()) {
             //! Code in this block runs in the child process
+
             close(sockfd); //! The child process doesn't need the listener anymore
 
             // ---- recv
@@ -160,7 +163,7 @@ int main(void)
                         0
             );
 
-            // Trim trailing whitespace
+            //! Trim trailing whitespace
             char * trimmed_request = rtrim(request);
 
             if (bytes_recvd > 0) {
@@ -168,11 +171,14 @@ int main(void)
             }
 
 
+            //! Process will parse the request and execute it, returning a
+            //! request_t req containing request data, type and status
             request_t req = process_request(trimmed_request);
 
             if (req.status != 200) {
-                // Request returned failure
+                // Request wasn't OK
                 PRINT_STATUS
+                //! Notify client of error
                 send_err(new_conn, req.status);
                 exit(0);
             }
