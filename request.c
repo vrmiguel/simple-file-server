@@ -222,9 +222,9 @@ static ssize_t send_file(request_t req, fd_t dest_sock) {
 static ssize_t notify_removal(request_t req, fd_t dest_sock) {
     assert(req.type == Remove);
     fprintf(stderr, "estou em notify_removal\n");
-    size_t message_size = strlen(req.data.remove_req.filename) + 25;
+    size_t message_size = strlen(req.data.remove_req.filename) + 31;
     char * message = malloc(message_size);
-    snprintf(message, message_size, "server: removed file '%s'", req.data.create_req.filename);
+    snprintf(message, message_size, "server: removed file '%s' [200]\n", req.data.create_req.filename);
 
     ssize_t bytes_sent = send(
         dest_sock,
@@ -239,9 +239,9 @@ static ssize_t notify_removal(request_t req, fd_t dest_sock) {
 
 static ssize_t notify_creation(request_t req, fd_t dest_sock) {
     assert(req.type == Create);
-    size_t message_size = strlen(req.data.create_req.filename) + 25;
+    size_t message_size = strlen(req.data.create_req.filename) + 31;
     char * message = malloc(message_size);
-    snprintf(message, message_size, "server: created file '%s'", req.data.create_req.filename);
+    snprintf(message, message_size, "server: created file '%s' [200]\n", req.data.create_req.filename);
 
     ssize_t bytes_sent = send(
         dest_sock,
@@ -275,5 +275,22 @@ ssize_t send_response(request_t req, fd_t dest_sock) {
             return notify_creation(req, dest_sock);
         case Remove:
             return notify_removal(req, dest_sock);
+    }
+    // Should be unreachable
+    exit(1);
+}
+
+ssize_t send_err(fd_t dest, unsigned short status) {
+    switch (status) {
+        case 400:
+            return send(dest, "400 - Bad Request\n", 19, 0);
+        case 404:
+            return send(dest, "404 - Not Found\n", 17, 0);
+        case 422:
+            return send(dest, "422 - Unprocessable Entity\n", 27, 0);
+        case 500:
+            return send(dest, "500 - Internal Server Error", 28, 0);
+        default:
+            exit(1); // Should be unreachable
     }
 }

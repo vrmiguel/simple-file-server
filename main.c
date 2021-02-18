@@ -177,6 +177,7 @@ int main(void)
             if (req.status != 200) {
                 // Request returned failure
                 PRINT_STATUS
+                send_err(new_conn, req.status);
                 exit(0);
             }
             ssize_t bytes_sent = send_response(req, new_conn);

@@ -16,6 +16,5 @@ typedef int fd_t;
 char * rtrim(char *);
 
 void * get_address(struct sockaddr *);
-//get_request_t get_file(const char *);
 
 #endif // UTILS_H

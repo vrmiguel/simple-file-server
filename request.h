@@ -57,5 +57,6 @@ typedef struct request_s request_t;
 
 request_t process_request(const char * request);
 ssize_t send_response(request_t, fd_t);
+ssize_t send_err(fd_t, unsigned short);
 
 #endif // REQUEST_H
