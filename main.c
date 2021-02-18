@@ -75,6 +75,7 @@ int main(void)
                 &hints,     //
                 &service_info   //
     );
+
     if (ret_val != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(ret_val));
         return 1;
@@ -115,8 +116,9 @@ int main(void)
         exit(1);
     }
 
-    sa.sa_handler = signal_handler; // reap all dead processes
+    sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
+
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGCHLD, &sa, NULL) == -1) {
         perror("sigaction");

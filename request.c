@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+#include <unistd.h>
 
 static inline bool is_get_req(const char * request) {
     return (!strncmp(request,"GET", 3)) ||
@@ -95,6 +96,66 @@ request_t process_remove_request(const char * request) {
     return req_struct;
 }
 
+request_t process_append_request(char * request) {
+    printf("server: processing APPEND request.\n");
+    request_t req_struct;
+    req_struct.type = Append;
+
+    if (strlen(request) <= 7) {
+        printf("server: error: missing body in APPEND request.\n");
+        req_struct.status = 422;
+        return req_struct;
+    }
+
+    // The position of the last ' ' character in the request string
+    ssize_t last_space_pos = -1;
+    int i, j = 0;
+    size_t len = strlen(request);
+
+    for(int i = len - 1; i >= 0; i--)
+    {
+        if (request[i] == ' ') {
+            last_space_pos = i;
+            break;
+        }
+    }
+
+    char * filename = malloc(len - last_space_pos);
+    for (i = last_space_pos+1; i < (signed) len; i++, j++) {
+//        printf("i-last_space_pos-1 = %ld", i-last_space_pos+1);
+//        printf("%c", request[i]);
+        filename[j] = request[i];
+    }
+    filename[j] = '\0';
+    request[last_space_pos] = '\0';
+
+    if ( access(filename, F_OK ) != 0) {
+        printf("server: error: cannot append to '%s' since it does not exist. Use CREATE to create new files.\n", filename);
+        req_struct.status = 404;
+        free(filename);
+        return req_struct;
+    }
+
+    FILE * file = fopen(filename, "a");
+    if (!file) {
+        printf("server: error: could not open '%s' for appending.\n", filename);
+        free(filename);
+        req_struct.status = 500;
+        return req_struct;
+    }
+
+    char * new_text = strdup(request+7);
+    printf("server: appending %ld bytes to '%s'.\n", strlen(new_text), filename);
+    req_struct.status = 200;
+    fprintf(file, "%s", new_text);
+
+    // Undo the modification on the request string
+    request[last_space_pos] = ' ';
+    free(new_text);
+    free(filename);
+    return req_struct;
+}
+
 request_t process_create_request(const char * request) {
     printf("server: processing CREATE request.\n");
     request_t req_struct;
@@ -135,14 +196,14 @@ request_t process_request(const char * request)
     }
 
     else if (is_append_req(request)) {
-
+        return process_append_request(request);
     }
 
     else if (is_remove_req(request)) {
         return process_remove_request(request);
     }
 
-    printf("server: error: unknown request");
+    printf("server: error: unknown request\n");
     request_t req; req.status = 400;
     return req;
 }
@@ -194,11 +255,22 @@ static ssize_t notify_creation(request_t req, fd_t dest_sock) {
     return bytes_sent;
 }
 
+static ssize_t notify_append(request_t req, fd_t dest_sock) {
+    assert(req.type == Append);
+    return send(
+        dest_sock,
+        "APPEND returned 200.\n",
+        22,
+        0
+    );
+}
+
 ssize_t send_response(request_t req, fd_t dest_sock) {
     switch (req.type) {
         case Get:
             return send_file(req, dest_sock);
-        case Append: break;
+        case Append:
+            return notify_append(req, dest_sock);
         case Create:
             return notify_creation(req, dest_sock);
         case Remove:
