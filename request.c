@@ -38,7 +38,7 @@ static request_t process_get_request(const char * request) {
     if (strlen(request) <= 4)
     {
         printf("server: error: missing body in GET request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
 
@@ -76,15 +76,26 @@ request_t process_remove_request(const char * request) {
 
     if (strlen(request) <= 7) {
         printf("server: error: missing body in REMOVE request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
 
     char * to_be_removed = strdup(request + 7);
+
+    if ( access(to_be_removed, F_OK ) != 0) {
+        printf("server: error: cannot remove to '%s' since it does not exist.\n", to_be_removed);
+        req_struct.status = 404;
+        free(to_be_removed);
+        return req_struct;
+    }
+
+
     int ret = remove(to_be_removed);
     if (ret == 0) {
         printf("server: file '%s' succesfully removed.\n", to_be_removed);
         req_struct.status = 200;
+        free(to_be_removed);
+        return req_struct;
     } else {
         printf("server: error: could not remove '%s'.\n", to_be_removed);
         req_struct.status = 500;
@@ -103,7 +114,7 @@ request_t process_append_request(char * request) {
 
     if (strlen(request) <= 7) {
         printf("server: error: missing body in APPEND request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
 
@@ -163,7 +174,7 @@ request_t process_create_request(const char * request) {
 
     if (strlen(request) <= 7) {
         printf("server: error: missing body in CREATE request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
     char * new_file_name = strdup(request + 7);
@@ -221,7 +232,6 @@ static ssize_t send_file(request_t req, fd_t dest_sock) {
 
 static ssize_t notify_removal(request_t req, fd_t dest_sock) {
     assert(req.type == Remove);
-    fprintf(stderr, "estou em notify_removal\n");
     size_t message_size = strlen(req.data.remove_req.filename) + 31;
     char * message = malloc(message_size);
     snprintf(message, message_size, "server: removed file '%s' [200]\n", req.data.create_req.filename);
@@ -286,8 +296,8 @@ ssize_t send_err(fd_t dest, unsigned short status) {
             return send(dest, "400 - Bad Request\n", 19, 0);
         case 404:
             return send(dest, "404 - Not Found\n", 17, 0);
-        case 422:
-            return send(dest, "422 - Unprocessable Entity\n", 27, 0);
+        case 400:
+            return send(dest, "400 - Unprocessable Entity\n", 27, 0);
         case 500:
             return send(dest, "500 - Internal Server Error", 28, 0);
         default:
