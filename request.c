@@ -38,7 +38,7 @@ static request_t process_get_request(const char * request) {
     if (strlen(request) <= 4)
     {
         printf("server: error: missing body in GET request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
 
@@ -76,7 +76,7 @@ request_t process_remove_request(const char * request) {
 
     if (strlen(request) <= 7) {
         printf("server: error: missing body in REMOVE request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
 
@@ -103,7 +103,7 @@ request_t process_append_request(char * request) {
 
     if (strlen(request) <= 7) {
         printf("server: error: missing body in APPEND request.\n");
-        req_struct.status = 422;
+        req_struct.status = 400;
         return req_struct;
     }
 
